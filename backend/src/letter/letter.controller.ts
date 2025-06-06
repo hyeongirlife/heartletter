@@ -1,23 +1,30 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
-import { LetterService } from './letter.service';
-import { GenerateLetterDto } from './dto/generate-letter.dto';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
+import { LetterService } from "./letter.service";
+import { GenerateLetterDto } from "./dto/generate-letter.dto";
 
-@Controller('letter')
+@Controller("letter")
 export class LetterController {
   constructor(private readonly letterService: LetterService) {}
 
-  @Post('generate')
+  @Post("generate")
   async generateLetter(@Body() generateLetterDto: GenerateLetterDto) {
     try {
       return await this.letterService.generateLetter(generateLetterDto);
     } catch (error) {
+      console.error("편지 생성 오류:", error);
       throw new HttpException(
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: '편지 생성 중 오류가 발생했습니다.',
+          error: "편지 생성 중 오류가 발생했습니다.",
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }

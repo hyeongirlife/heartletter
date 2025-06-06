@@ -1,37 +1,44 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Configuration, OpenAIApi } from 'openai';
+import axios from 'axios';
 import { GenerateLetterDto } from './dto/generate-letter.dto';
 
 @Injectable()
 export class OpenAiService {
-  private openai: OpenAIApi;
+  private apiKey: string;
+  private apiUrl = 'https://api.openai.com/v1/chat/completions';
 
   constructor(private configService: ConfigService) {
-    const configuration = new Configuration({
-      apiKey: this.configService.get<string>('OPENAI_API_KEY'),
-    });
-    this.openai = new OpenAIApi(configuration);
+    this.apiKey = this.configService.get<string>('OPENAI_API_KEY');
   }
 
   async generateLetter(letterDto: GenerateLetterDto): Promise<string> {
     try {
       const prompt = this.createPrompt(letterDto);
       
-      const completion = await this.openai.createChatCompletion({
-        model: 'gpt-4',
-        messages: [
-          { 
-            role: 'system', 
-            content: '당신은 감성적이고 진심 어린 연애편지를 작성하는 전문가입니다.' 
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: this.getMaxTokensByLength(letterDto.length),
-      });
+      const response = await axios.post(
+        this.apiUrl,
+        {
+          model: 'gpt-4o',  // gpt-4o로 모델 변경
+          messages: [
+            { 
+              role: 'system', 
+              content: '당신은 감성적이고 진심 어린 연애편지를 작성하는 전문가입니다.' 
+            },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: this.getMaxTokensByLength(letterDto.length),
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`
+          }
+        }
+      );
 
-      return completion.data.choices[0].message.content.trim();
+      return response.data.choices[0].message.content.trim();
     } catch (error) {
       console.error('OpenAI API 오류:', error);
       throw new Error('편지 생성 중 오류가 발생했습니다.');

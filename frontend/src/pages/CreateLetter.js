@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Container, Row, Col, Card, Button, ProgressBar } from 'react-bootstrap';
+import { Container, Card, Button, ProgressBar, Spinner, Alert } from 'react-bootstrap';
 import BasicInfoForm from '../components/forms/BasicInfoForm';
 import EmotionForm from '../components/forms/EmotionForm';
 import PersonalizationForm from '../components/forms/PersonalizationForm';
 import LetterPreview from '../components/letter/LetterPreview';
+import axios from 'axios';
+
+// CORS 이슈 방지를 위한 axios 설정
+axios.defaults.withCredentials = false;
 
 const PageTitle = styled.h1`
   text-align: center;
@@ -51,19 +55,23 @@ const CreateLetter = () => {
     occasion: '',
     memories: '',
     traits: '',
-    keywords: ''
+    keywords: '',
+    mood: '로맨틱',
+    length: '중간 길이',
+    specialRequest: ''
   });
   const [letterContent, setLetterContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
   
   const handleNext = () => {
-    setStep(step + 1);
-    
-    // 마지막 단계에서 편지 생성
     if (step === 3) {
       generateLetter();
+    } else {
+      setStep(step + 1);
     }
   };
   
@@ -78,24 +86,26 @@ const CreateLetter = () => {
     });
   };
   
-  const generateLetter = () => {
-    // 실제로는 API 호출이나 알고리즘을 통해 편지 생성
-    // 여기서는 예시로 간단한 템플릿 사용
-    const letter = `
-      사랑하는 ${formData.recipientName}에게,
-      
-      오늘 이렇게 편지를 쓰게 되어 기쁩니다. 우리가 ${formData.relationship}으로 지낸 지도 ${formData.duration}이 되었네요.
-      
-      ${formData.occasion}을 맞이하여, 평소에 말하지 못했던 내 마음을 전하고 싶어요. 당신의 ${formData.traits}에 항상 감동받고 있어요.
-      
-      ${formData.memories}의 추억은 내게 정말 특별해요. 그때 당신과 함께했던 시간들이 내게는 보물 같은 기억으로 남아있습니다.
-      
-      앞으로도 당신과 함께하는 시간들이 기대돼요. 항상 ${formData.emotion}한 마음으로 당신을 생각합니다.
-      
-      사랑을 담아,
-    `;
+  const generateLetter = async () => {
+    setLoading(true);
+    setError(null);
     
-    setLetterContent(letter);
+    try {
+      // 전체 API 경로를 명시적으로 지정
+      const response = await axios.post('http://localhost:5001/api/letter/generate', formData);
+      
+      if (response.data && response.data.success) {
+        setLetterContent(response.data.content);
+        setStep(step + 1);
+      } else {
+        throw new Error('편지 생성에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('편지 생성 오류:', err);
+      setError(err.response?.data?.message || '편지 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -145,8 +155,30 @@ const CreateLetter = () => {
             />
             <NavigationButtons>
               <Button variant="outline-secondary" onClick={handlePrevious}>이전</Button>
-              <Button variant="primary" onClick={handleNext}>편지 생성하기</Button>
+              <Button 
+                variant="primary" 
+                onClick={handleNext}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-hidden="true"
+                    />
+                    {' '}편지 생성 중...
+                  </>
+                ) : '편지 생성하기'}
+              </Button>
             </NavigationButtons>
+            {error && (
+              <Alert variant="danger" className="mt-3">
+                {error}
+              </Alert>
+            )}
           </StepBody>
         </StepCard>
       )}
